@@ -83,34 +83,63 @@ func put(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(req)
 }
 
-func timestampParser(ts string) (time.Time, error) {
-	var result time.Time
-	if strings.Contains(ts, "-ago") {
+type friendlyTime struct{ time.Time }
+
+func (t *friendlyTime) UnmarshalJSON(b []byte) error {
+	ts := string(b)
+	if strings.HasSuffix(ts, "-ago") {
 		ts = strings.Split(ts, "-")[0]
 		suffix := ts[len(ts)-1:]
 		var duration time.Duration
 		switch suffix {
 		case "s":
 			duration = time.Second
+		case "m":
+			duration = time.Minute
 		case "h":
 			duration = time.Hour
+		case "d":
+			duration = time.Hour * 24
 		case "w":
 			duration = time.Hour * 24 * 7
 		case "n":
-			duration = time.Hour * 24 * 7 * 30
+			duration = time.Hour * 24 * 30
 		case "y":
 			duration = time.Hour * 24 * 365
 		default:
-			return time.Now(), fmt.Errorf("Unknown time suffix: %s\n", suffix)
+			return fmt.Errorf("Unable to parse time: %s\n", ts)
 		}
 		prefix, err := strconv.Atoi(ts[:len(ts)-1])
 		if err != nil {
-			return time.Now(), err
+			return err
 		}
-		result = time.Now().Add(time.Duration(prefix) * duration * -1)
+		t.Time = time.Now().Add(time.Duration(prefix) * duration * -1)
+	}
+	//	FormatA = "2006-01-02T15:04:05.999999999Z07:00"
+	formats := []string{
+		"2006/01/02-15:04:05",
+		"2006/01/02 15:04:05",
+		"2006/01/02-15:04",
+		"2006/01/02 15:04",
+		"2006/01/02",
 	}
 
-	return result, nil
+	success := false
+	var err error
+	for _, format := range formats {
+		if len(format) != len(ts) {
+			continue
+		}
+		if t.Time, err = time.Parse(format, ts); err == nil {
+			success = true
+			break
+		}
+	}
+	if !success {
+		return fmt.Errorf("Unable to parse time: %s\n", ts)
+	}
+
+	return nil
 }
 
 type filterType string
@@ -133,8 +162,8 @@ type query struct {
 }
 
 type queryRequest struct {
-	Start   string
-	End     string
+	Start   friendlyTime
+	End     friendlyTime
 	Queries []query
 }
 
