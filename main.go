@@ -204,7 +204,7 @@ func apiQuery(w http.ResponseWriter, r *http.Request) {
 }
 
 // create keyspace torb  WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
-// create table tsdb ( metric text,  time timestamp, tags frozen <map<text, text>>, offset int, value blob, PRIMARY KEY (metric, time, tags) );
+// create table tsdb ( metric text,  time timestamp, tags frozen <map<text, text>>, offset bigint, value blob, PRIMARY KEY ((metric, time, tags), offset) );
 func cassSession() (*gocql.Session, error) {
 	cluster := gocql.NewCluster("172.17.0.2")
 	cluster.Keyspace = "torb"
