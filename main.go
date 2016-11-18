@@ -68,11 +68,14 @@ func put(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
+	rowTime := calculateRowTime(req.Timestamp.Time)
+	offset := req.Timestamp.Time.Sub(rowTime)
+
 	if err := cass.Query(`INSERT INTO tsdb (metric, tags, time, offset, value) VALUES (?, ?, ?, ?, ?)`,
 		req.Metric,
 		req.Tags,
-		req.Timestamp.Time,
-		req.Offset,
+		rowTime,
+		offset,
 		req.Value).Exec(); err != nil {
 		fmt.Println(err)
 	}
@@ -135,9 +138,15 @@ type queryRequest struct {
 	Queries []query
 }
 
+const ROW_WIDTH = time.Hour * 24 * 7 * 3
+
+func calculateRowTime(t time.Time) time.Time {
+	return t.Truncate(ROW_WIDTH)
+}
+
 func (q queryRequest) Parse() {
-	q.End = timestampParser(q.End)
-	q.Start = timestampParser(q.Start)
+	//	q.End = timestampParser(q.End)
+	//	q.Start = timestampParser(q.Start)
 }
 
 func apiQuery(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +160,7 @@ func apiQuery(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
-	queryRequest.Parse()
+	//	queryRequest.Parse()
 
 	//	if err := cass.Query(`SELECT offset FROM tsdb WHERE metric=? AND tags=? AND `,
 	//		req.Metric,
